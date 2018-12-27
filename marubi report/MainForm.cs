@@ -20,7 +20,7 @@ namespace Marubi
 
         private const string REPORT_FILE_NAME = "marubi inventory report.xls";
         private const string DATA_FILE_NAME = "marubi inventory.xls";
-        private const string ACCESS_DB_FILE = "marubi.mdb";
+        private const string ACCESS_DB_FILE_NAME = "marubi.mdb";
         
         private const string EXCEL_CONNECTION_STRING = "Provider={0};Data Source={1};Extended Properties=Excel 8.0";        
         private const string ACCESS_CONNNECTION_STRING = "Provider=Microsoft.Jet.OLEDB.4.0;Data Source={0}";
@@ -28,6 +28,7 @@ namespace Marubi
         private string startupPath = Path.Combine(Application.StartupPath, "access db");
 
         private string xlsConnectionString = "";
+        string accessConnectionString = "Provider=Microsoft.Jet.OLEDB.4.0;Data Source={0}";
 
         delegate void ProcessStatusDelegate(string message);
         delegate void SetButtonEnableDelegate(bool enable);
@@ -44,16 +45,16 @@ namespace Marubi
         
         private string ReportFile { get; set; }
 
-        private string AccessDB { get; set; }
+        private string AccessDbFile { get; set; }
         #endregion
 
         private void InitializeUI()
         {            
             DataFile = Path.Combine(startupPath, DATA_FILE_NAME);
             ReportFile = Path.Combine(startupPath, REPORT_FILE_NAME);
-
+            AccessDbFile = string.Format(ACCESS_CONNNECTION_STRING, Path.Combine(startupPath, ACCESS_DB_FILE_NAME));
             InitializeFile();
-            SetConnectionString(DataFile, AccessDB);
+            SetConnectionString(DataFile, AccessDbFile);
         }
 
         private void InitializeFile()
@@ -93,7 +94,7 @@ namespace Marubi
             {
                 DataFile = openFileDialog.FileName;
                 this.TxtDataFile.Text = DataFile;
-                SetConnectionString();
+                SetConnectionString(DataFile, AccessDbFile);
             }
         }
 
@@ -101,7 +102,7 @@ namespace Marubi
 
         private void BtnImport_Click(object sender, EventArgs e)
         {
-            FileInfo file = new FileInfo(xlsFullFilePath);
+            FileInfo file = new FileInfo(DataFile);
             if (!file.Exists)
             {
                 MessageBox.Show("所选择的 Excel 数据文件不存在, 请确认！", "数据导入", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -143,19 +144,19 @@ namespace Marubi
 
                 SetProcessStatus("  正在保存成品数据 ...");
                 st.Start();
-                int productsAffected = AccessDB.SaveDataSource(ACCESS_CONNNECTION_STRING, productDataSet, ExcelDataType.Product, this);
+                int productsAffected = AccessDB.SaveDataSource(AccessDbFile, productDataSet, ExcelDataType.Product, this);
                 st.Stop();
                 SetProcessStatus(string.Format("    已成功保存成品数据 {0} 条, 用时 {1} 秒！", productsAffected, st.Elapsed.TotalSeconds));
 
                 SetProcessStatus("  正在保存包材数据 ...");
                 st.Start();
-                int partsAffected = AccessDB.SaveDataSource(ACCESS_CONNNECTION_STRING, partDataSet, ExcelDataType.PackingMaterial, this);
+                int partsAffected = AccessDB.SaveDataSource(AccessDbFile, partDataSet, ExcelDataType.PackingMaterial, this);
                 st.Stop();
                 SetProcessStatus(string.Format("    已成功保存包材数据 {0} 条, 用时 {1} 秒！", partsAffected, st.Elapsed.TotalSeconds));
 
                 SetProcessStatus("  正在保存 BOM 数据 ...");
                 st.Start();
-                int bomAffected = AccessDB.SaveDataSource(ACCESS_CONNNECTION_STRING, bomDataSet, ExcelDataType.Bom, this);
+                int bomAffected = AccessDB.SaveDataSource(AccessDbFile, bomDataSet, ExcelDataType.Bom, this);
                 st.Stop();
                 SetProcessStatus(string.Format("    已成功保存 BOM 数据 {0} 条, 用时 {1} 秒！", bomAffected, st.Elapsed.TotalSeconds));
 
@@ -206,7 +207,7 @@ namespace Marubi
 
         private void BtnGenReport_Click(object sender, EventArgs e)
         {
-            FileInfo file = new FileInfo(xlsFullFilePath);
+            FileInfo file = new FileInfo(DataFile);
             if (!file.Exists)
             {
                 MessageBox.Show("所选择的 Excel 数据文件不存在, 请确认！", "生成报表", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -237,15 +238,15 @@ namespace Marubi
 
                 SetProcessStatus("  正在保存需要产生报表的商品编号 ...");
                 st.Start();
-                int reportsAffected = AccessDB.SaveDataSource(ACCESS_CONNNECTION_STRING, reportDataSet, ExcelDataType.Report, this);
+                int reportsAffected = AccessDB.SaveDataSource(AccessDbFile, reportDataSet, ExcelDataType.Report, this);
                 st.Stop();
                 SetProcessStatus(string.Format("    已成功保存商品编号数据 {0} 条, 用时 {1} 秒.", reportsAffected, st.Elapsed.TotalSeconds));
 
                 SetProcessStatus("  正在生成报表 ...");
                 st.Start();
-                DataTable dt = AccessDB.GetReportTable(ACCESS_CONNNECTION_STRING);
+                DataTable dt = AccessDB.GetReportTable(AccessDbFile);
                 if (dt != null && dt.Rows.Count > 0)
-                    ExcelUtils.Export(dt, rptFullFilePath, "常规产品");
+                    ExcelUtils.Export(dt, ReportFile, "常规产品");
                 st.Stop();
                 SetProcessStatus(string.Format("    生成报表用时 {1} 秒.", reportsAffected, st.Elapsed.TotalSeconds));
 
